@@ -6,89 +6,56 @@ import (
 	"strings"
 )
 
-const (
-	charHeight = 8
-	charBlock  = 9
-	firstASCII = 32
-	lastASCII  = 126
-)
-
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Println("Usage: go run . \"text\"")
 		return
 	}
+
 	input := os.Args[1]
-	banner, err := LoadBanner("standard.txt")
+	data, err := os.ReadFile("shadow.txt")
 	if err != nil {
-		fmt.Println("Error:", err)
+		fmt.Println("Error reading banner file")
 		return
 	}
-	if err := ValidateBanner(banner); err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-	PrintAscii(input, banner)
-}
 
-func LoadBanner(filename string) ([]string, error) {
-	data, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read banner file: %w", err)
-	}
-	content := strings.ReplaceAll(string(data), "\r\n", "\n")
+	lines := strings.Split(string(data), "\n")
+	font := make(map[rune][]string)
 
-	lines := strings.Split(content, "\n")
-	if len(lines) > 0 && lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
-	}
-	return lines, nil
-}
+	ascii := 32
+	index := 1
 
-func ValidateBanner(banner []string) error {
-	expectedChars := lastASCII - firstASCII + 1
-	expectedLines := expectedChars * charBlock
-	if len(banner) < expectedLines {
-		return fmt.Errorf("invalid banner: too few lines (%d < %d)", len(banner), expectedLines)
+	for ascii <= 126 {
+		if index+8 <= len(lines) {
+			font[rune(ascii)] = lines[index : index+8]
+		}
+		index += 9
+		ascii++
 	}
-	return nil
-}
 
-func PrintAscii(input string, banner []string) {
 	if input == "" {
+		return
+	}
+
+	if input == "\\n" {
 		fmt.Println()
 		return
 	}
-	parts := strings.Split(input, "\\n")
 
-	for _, part := range parts {
-		if part == "" {
+	words := strings.Split(input, "\\n")
+
+	for _, word := range words {
+
+		if word == "" {
 			fmt.Println()
 			continue
 		}
-		for row := 0; row < charHeight; row++ {
-			var line strings.Builder
-
-			for _, r := range part {
-				if !IsPrintable(r) {
-					line.WriteString("?")
-					continue
+		for i := 0; i < 8; i++ {
+			for _, ch := range word {
+				if art, ok := font[ch]; ok {
+					fmt.Print(art[i])
 				}
-				offset := int(r) - firstASCII
-				base := offset * charBlock
-				index := base + row + 1
-				if index < 0 || index >= len(banner) {
-					line.WriteString("?")
-					continue
-				}
-
-				line.WriteString(banner[index])
 			}
-			fmt.Println(line.String())
+			fmt.Println()
 		}
 	}
-}
-
-func IsPrintable(r rune) bool {
-	return r >= firstASCII && r <= lastASCII
 }
