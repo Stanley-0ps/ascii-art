@@ -8,6 +8,7 @@ import (
 
 func main() {
 	if len(os.Args) != 2 {
+		fmt.Println("Error: must be two(2) arguments.")
 		return
 	}
 
