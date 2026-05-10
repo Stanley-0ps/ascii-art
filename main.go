@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+const (
+	charHeight = 8
+	asciiStart = 32
+	asciiEnd   = 126
+)
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Println("Error:", err)
@@ -19,81 +25,148 @@ func run() error {
 		return err
 	}
 
-	font, err := loadFont("shadow.txt")
+	banner, err := LoadBanner("shadow.txt")
 	if err != nil {
 		return err
 	}
 
-	return render(input, font)
+	_, err = ValidateInput(strings.ReplaceAll(input, `\n`, ""))
+	if err != nil {
+		return err
+	}
+
+	fmt.Print(GenerateArt(input, banner))
+
+	return nil
 }
 
 func validateArgs(args []string) (string, error) {
 	if len(args) != 2 {
 		return "", errors.New("program expects exactly one argument")
 	}
+
 	return args[1], nil
 }
 
-func loadFont(filename string) (map[rune][]string, error) {
+// LoadBanner matches the test file function name.
+func LoadBanner(filename string) (map[rune][]string, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read banner file: %w", err)
 	}
 
-	lines := strings.Split(string(data), "\n")
-	font := make(map[rune][]string)
+	if len(data) == 0 {
+		return nil, errors.New("banner file is empty")
+	}
 
-	ascii := 32
+	// Normalize line endings
+	clean := strings.ReplaceAll(string(data), "\r\n", "\n")
+	clean = strings.ReplaceAll(clean, "\r", "\n")
+
+	lines := strings.Split(clean, "\n")
+
+	// Remove trailing empty lines
+	for len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+
+	banner := make(map[rune][]string)
+
 	index := 1
 
-	for ascii <= 126 {
-		if index+8 > len(lines) {
-			return nil, errors.New("invalid font file format")
+	for ascii := asciiStart; ascii <= asciiEnd; ascii++ {
+		if index+charHeight > len(lines) {
+			return nil, errors.New("invalid banner format")
 		}
-		font[rune(ascii)] = lines[index : index+8]
-		index += 9
-		ascii++
+
+		glyph := lines[index : index+charHeight]
+
+		if len(glyph) != charHeight {
+			return nil, fmt.Errorf("invalid glyph height for %q", rune(ascii))
+		}
+
+		banner[rune(ascii)] = glyph
+
+		index += charHeight + 1
 	}
 
-	return font, nil
+	if len(banner) != 95 {
+		return nil, fmt.Errorf("expected 95 characters, got %d", len(banner))
+	}
+
+	return banner, nil
 }
 
-func render(input string, font map[rune][]string) error {
+// ValidateInput matches the test expectations exactly.
+func ValidateInput(input string) (rune, error) {
+	for _, r := range input {
+		if r < asciiStart || r > asciiEnd {
+			return r, fmt.Errorf("invalid character: %q", r)
+		}
+	}
+
+	return 0, nil
+}
+
+// RenderLine returns exactly 8 rendered lines.
+func RenderLine(text string, banner map[rune][]string) []string {
+	lines := make([]string, charHeight)
+
+	for i := 0; i < charHeight; i++ {
+		var builder strings.Builder
+
+		for _, r := range text {
+			builder.WriteString(banner[r][i])
+		}
+
+		lines[i] = builder.String()
+	}
+
+	return lines
+}
+
+// GenerateArt handles ALL newline edge cases from the tests.
+func GenerateArt(input string, banner map[rune][]string) string {
+	// Empty input => no output
 	if input == "" {
-		return nil
+		return ""
 	}
 
-	if input == "\\n" {
-		fmt.Println()
-		return nil
+	// Single \n => exactly one newline
+	if input == `\n` {
+		return "\n"
 	}
 
-	words := strings.Split(input, "\\n")
+	parts := strings.Split(input, `\n`)
 
-	for _, word := range words {
-		if word == "" {
-			fmt.Println()
-			continue
-		}
+	var result strings.Builder
 
-		if err := renderWord(word, font); err != nil {
-			return err
-		}
-	}
+	for i, part := range parts {
+		switch {
+		// Leading empty part
+		case i == 0 && part == "":
+			result.WriteString("\n")
 
-	return nil
-}
-
-func renderWord(word string, font map[rune][]string) error {
-	for i := 0; i < 8; i++ {
-		for _, ch := range word {
-			art, ok := font[ch]
-			if !ok {
-				return fmt.Errorf("unsupported character: %q", ch)
+		// Trailing empty part
+		case i == len(parts)-1 && part == "":
+			for j := 0; j < charHeight; j++ {
+				result.WriteString("\n")
 			}
-			fmt.Print(art[i])
+
+		// Empty middle part => single blank line
+		case part == "":
+			result.WriteString("\n")
+
+		// Normal text
+		default:
+			rendered := RenderLine(part, banner)
+
+			for _, line := range rendered {
+				result.WriteString(line)
+				result.WriteString("\n")
+			}
 		}
-		fmt.Println()
 	}
-	return nil
+
+	return result.String()
 }
