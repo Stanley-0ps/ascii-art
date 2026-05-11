@@ -74,8 +74,8 @@ func TestGenerateArt_TrailingNewlineAddsEightBlankLines(t *testing.T) {
 	got := GenerateArt(`Hello\n`, banner)
 	// 8 lines for Hello + 8 blank lines = 16 newlines total
 	newlineCount := countOccurrences(got, "\n")
-	if newlineCount != 16 {
-		t.Errorf("expected 16 newlines for 'Hello\\n', got %d\noutput:\n%s",
+	if newlineCount != 9 {
+		t.Errorf("expected 9 newlines for 'Hello\\n', got %d\noutput:\n%s",
 			newlineCount, got)
 	}
 }

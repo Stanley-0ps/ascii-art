@@ -25,12 +25,12 @@ func run() error {
 		return err
 	}
 
-	banner, err := LoadBanner("shadow.txt")
+	_, err = ValidateInput(strings.ReplaceAll(input, `\n`, ""))
 	if err != nil {
 		return err
 	}
 
-	_, err = ValidateInput(strings.ReplaceAll(input, `\n`, ""))
+	banner, err := LoadBanner("shadow.txt")
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,6 @@ func validateArgs(args []string) (string, error) {
 	return args[1], nil
 }
 
-// LoadBanner matches the test file function name.
 func LoadBanner(filename string) (map[rune][]string, error) {
 	data, err := os.ReadFile(filename)
 	if err != nil {
@@ -61,7 +60,6 @@ func LoadBanner(filename string) (map[rune][]string, error) {
 
 	// Normalize line endings
 	clean := strings.ReplaceAll(string(data), "\r\n", "\n")
-	clean = strings.ReplaceAll(clean, "\r", "\n")
 
 	lines := strings.Split(clean, "\n")
 
@@ -79,13 +77,13 @@ func LoadBanner(filename string) (map[rune][]string, error) {
 			return nil, errors.New("invalid banner format")
 		}
 
-		glyph := lines[index : index+charHeight]
+		symbol := lines[index : index+charHeight]
 
-		if len(glyph) != charHeight {
-			return nil, fmt.Errorf("invalid glyph height for %q", rune(ascii))
+		if len(symbol) != charHeight {
+			return nil, fmt.Errorf("invalid symbol height for %q", rune(ascii))
 		}
 
-		banner[rune(ascii)] = glyph
+		banner[rune(ascii)] = symbol
 
 		index += charHeight + 1
 	}
@@ -97,14 +95,12 @@ func LoadBanner(filename string) (map[rune][]string, error) {
 	return banner, nil
 }
 
-// ValidateInput matches the test expectations exactly.
 func ValidateInput(input string) (rune, error) {
-	for _, r := range input {
-		if r < asciiStart || r > asciiEnd {
-			return r, fmt.Errorf("invalid character: %q", r)
+	for _, ch := range input {
+		if ch < asciiStart || ch > asciiEnd {
+			return ch, fmt.Errorf("invalid character: %q", ch)
 		}
 	}
-
 	return 0, nil
 }
 
@@ -133,7 +129,7 @@ func GenerateArt(input string, banner map[rune][]string) string {
 	}
 
 	// Single \n => exactly one newline
-	if input == `\n` {
+	if input == "\\n" {
 		return "\n"
 	}
 
@@ -149,9 +145,8 @@ func GenerateArt(input string, banner map[rune][]string) string {
 
 		// Trailing empty part
 		case i == len(parts)-1 && part == "":
-			for j := 0; j < charHeight; j++ {
-				result.WriteString("\n")
-			}
+
+			result.WriteString("\n")
 
 		// Empty middle part => single blank line
 		case part == "":
